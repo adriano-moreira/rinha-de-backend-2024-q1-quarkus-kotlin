@@ -7,7 +7,7 @@ const urlBase = 'http://localhost:9999'
 
 /**
  * JsDoc
- * @param {Number|String} clienteId 
+ * @param {Number|String} clienteId
  * @param {Object} payload
  * @param {Number} payload.valor
  * @param {String} payload.tipo
@@ -29,7 +29,8 @@ export function postTransacao(clienteId, payload) {
 
     if (post.status != 200) {
         console.error(`params: ${clienteId} ${JSON.stringify(payload, null, 4)}`)
-        console.error(post.status, post.body)
+        console.error(`http-status: ${post.status}`)
+        console.error(`body: ${post.body}`)
         fail()
     }
     return post
@@ -37,8 +38,8 @@ export function postTransacao(clienteId, payload) {
 
 
 /**
- * 
- * @param {Number|String} clienteId 
+ *
+ * @param {Number|String} clienteId
  */
 export function getExtrato(clienteId) {
     return http.get(

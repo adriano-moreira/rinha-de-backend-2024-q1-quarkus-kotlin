@@ -18,10 +18,8 @@ services:
     deploy:
       resources:
         limits:
-          # cpus: "0.25"
-          memory: "100MB"
-          cpus: "1.0"
-#            memory: "300MB"
+          cpus: "0.40"
+          memory: "150MB"
 
   api02:
     <<: *api
@@ -43,11 +41,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "1.0"
-          memory: "300MB"
+          cpus: ".2"
+          memory: "40MB"
 
   db:
-    image: postgres:latest
+    image: postgres:13
     hostname: db
     environment:
       - POSTGRES_PASSWORD=123
@@ -65,11 +63,9 @@ services:
     deploy:
       resources:
         limits:
-          # cpus: "0.90"
-          cpus: "1.0"
-          memory: "330MB"
+          cpus: "0.5"
+          memory: "210MB"
 
 networks:
   default:
     driver: bridge
-    name: rinha-nginx-2024q1

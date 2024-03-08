@@ -22,3 +22,5 @@ benchmark:
 
 stress-test:
 	k6 run load-test/benchmark
+
+build-restart-jvm: build-jvm down up
