@@ -1,8 +1,10 @@
 import com.fasterxml.jackson.annotation.JsonProperty
 import io.quarkus.hibernate.orm.panache.kotlin.PanacheRepository
+import io.quarkus.logging.Log
 import io.quarkus.runtime.annotations.RegisterForReflection
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.persistence.*
+import jakarta.transaction.RollbackException
 import jakarta.transaction.Transactional
 import jakarta.ws.rs.*
 import jakarta.ws.rs.core.Response
@@ -20,6 +22,9 @@ class Cliente {
     var saldo: Long? = null
     var limite: Long? = null
 
+    @Version
+    var version: Long? = null
+
     fun getTotal(): Long {
         return saldo!! + limite!!
     }
@@ -34,17 +39,25 @@ class Transacao {
     var valor: Long? = null
     var tipo: Char? = null
     var descricao: String? = null
+
     @Column(name = "cliente_id")
     var clienteId: Long? = null
+
     @Column(name = "criado")
     var createAt: LocalDateTime? = null
 }
 
 @ApplicationScoped
 class ClienteRepository : PanacheRepository<Cliente> {
-    fun findByIdWithLock(id: Long):Cliente? {
+    fun findByIdWithLock(id: Long): Cliente? {
         return findById(id, lockModeType = LockModeType.PESSIMISTIC_WRITE)
     }
+
+    private fun getCliente(id: Long): Cliente {
+        return findById(id) ?: throw NotFoundException()
+    }
+
+
 }
 
 @ApplicationScoped
@@ -94,8 +107,25 @@ class TransacoesService(
         )
     }
 
-    @Transactional
     fun criarTransacao(clienteId: Long, payload: CreateTransacaoPayload): CreateTransacaoResponse {
+        var cliente: Cliente? = null
+
+        while (cliente == null) {
+            try {
+                cliente = tryUpdate(clienteId, payload)
+            } catch (ex: OptimisticLockException) {
+                //try again
+            }
+        }
+
+        return CreateTransacaoResponse(
+            saldo = cliente.saldo!!,
+            limit = cliente.limite!!,
+        )
+    }
+
+    @Transactional
+    protected fun tryUpdate(clienteId: Long, payload: CreateTransacaoPayload): Cliente {
         val cliente = getCliente(clienteId)
 
         if (payload.tipo == 'd' && cliente.getTotal() < payload.valor) {
@@ -108,7 +138,7 @@ class TransacoesService(
             cliente.saldo = cliente.saldo!! + payload.valor
         }
 
-        clienteRepository.persist(cliente)
+        clienteRepository.persistAndFlush(cliente)
 
         val transacao = Transacao()
         transacao.clienteId = cliente.id
@@ -116,15 +146,9 @@ class TransacoesService(
         transacao.valor = payload.valor
         transacao.tipo = payload.tipo
         transacao.descricao = payload.descricao
-
-        transacaoRepository.persist(transacao)
-
-        return CreateTransacaoResponse(
-            saldo = cliente.saldo!!,
-            limit = cliente.limite!!,
-        )
+        transacaoRepository.persistAndFlush(transacao)
+        return cliente
     }
-
 
 }
 
@@ -173,7 +197,7 @@ class ClienteResource(
 class RegraException(message: String?) : RuntimeException(message)
 
 @Provider
-class RegraExceptionMapper: ExceptionMapper<RegraException> {
+class RegraExceptionMapper : ExceptionMapper<RegraException> {
     override fun toResponse(exception: RegraException?): Response {
         return Response.status(416).build()
     }

@@ -3,7 +3,8 @@ CREATE TABLE clientes
     id     SERIAL PRIMARY KEY,
     nome   VARCHAR(32),
     limite NUMERIC DEFAULT 0,
-    saldo  NUMERIC DEFAULT 0
+    saldo  NUMERIC DEFAULT 0,
+    version NUMERIC DEFAULT 1
 );
 
 CREATE TABLE transacoes
