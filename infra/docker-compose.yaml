@@ -9,6 +9,7 @@ services:
     hostname: api01
     environment:
       - DB_HOSTNAME=db
+      - QUARKUS_HTTP_LIMITS_MAX_CONNECTIONS=5000
     ports:
       - "8081:8080"
     depends_on:
@@ -41,8 +42,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: ".2"
-          memory: "40MB"
+          cpus: ".15"
+          memory: "60MB"
 
   db:
     image: postgres:13
@@ -63,8 +64,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.5"
-          memory: "210MB"
+          cpus: "0.55"
+          memory: "190MB"
 
 networks:
   default:

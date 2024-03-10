@@ -17,7 +17,7 @@ export function postTransacao(clienteId, payload) {
 
 //JSON XML
     const post = http.post(
-        `${urlBase}/cliente/${clienteId}/transacoes`,
+        `${urlBase}/clientes/${clienteId}/transacoes`,
         JSON.stringify(payload),
         {
             responseType: 'text',
@@ -43,7 +43,7 @@ export function postTransacao(clienteId, payload) {
  */
 export function getExtrato(clienteId) {
     return http.get(
-        `${urlBase}/cliente/${clienteId}/extrato`,
+        `${urlBase}/clientes/${clienteId}/extrato`,
         {
             responseType: 'text',
         },
