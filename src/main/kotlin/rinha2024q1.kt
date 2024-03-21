@@ -1,5 +1,7 @@
 import com.fasterxml.jackson.annotation.JsonProperty
+import io.opentelemetry.instrumentation.annotations.WithSpan
 import io.quarkus.hibernate.orm.panache.kotlin.PanacheRepository
+import io.quarkus.logging.Log
 import io.quarkus.runtime.annotations.RegisterForReflection
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.persistence.*
@@ -114,6 +116,7 @@ class TransacoesService(
     }
 
     @Transactional
+    @WithSpan
     protected fun tryUpdate(clienteId: Long, payload: CreateTransacaoPayload): Cliente {
         val cliente = getCliente(clienteId)
 
@@ -155,6 +158,7 @@ class ClienteResource(
         @PathParam("id") clienteId: Long,
         payload: CreateTransacaoPayload,
     ): CreateTransacaoResponse {
+        Log.infov("create-transaction client: $clienteId value: ${payload.valor}")
         validatePayload(payload)
         return service.criarTransacao(clienteId, payload)
     }

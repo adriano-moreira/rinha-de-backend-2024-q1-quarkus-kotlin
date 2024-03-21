@@ -1,0 +1,133 @@
+version: "3.9"
+
+services:
+#  jaeger-all-in-one:
+#    image: jaegertracing/all-in-one:latest
+#    ports:
+#      - "16686:16686" # Jaeger UI
+#      - "4317:4317"   # OTLP gRPC receiver
+#    environment:
+#      - COLLECTOR_OTLP_ENABLED=true
+
+
+  tempo:
+    image: grafana/tempo:latest
+    command: [ "-config.file=/etc/tempo.yaml" ]
+    volumes:
+      - ./tempo.yaml:/etc/tempo.yaml
+      - ./tempo-data:/tmp/tempo
+    ports:
+      - "14268:14268"  # jaeger ingest
+      - "3200:3200"   # tempo
+      - "9095:9095" # tempo grpc
+      - "4317:4317"  # otlp grpc
+      - "4318:4318"  # otlp http
+      - "9411:9411"   # zipkin
+
+  loki:
+    image: grafana/loki:2.9.4
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+
+#  promtail:
+#    image: grafana/promtail:2.9.4
+#    volumes:
+#      - /var/log:/var/log
+#    command: -config.file=/etc/promtail/config.yml
+
+#  k6-tracing:
+#    image: ghcr.io/grafana/xk6-client-tracing:latest
+#    environment:
+#      - ENDPOINT=tempo:4317
+#    restart: always
+#    depends_on:
+#      - tempo
+
+  prometheus:
+    image: prom/prometheus:latest
+    command:
+      - --config.file=/etc/prometheus.yaml
+      - --web.enable-remote-write-receiver
+      - --enable-feature=exemplar-storage
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus.yaml
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:10.2.2
+    volumes:
+      - ./grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor traceQLStreaming metricsSummary
+    ports:
+      - "3000:3000"
+
+
+  api01: &api
+    image: docker.io/adrianomoreira86/rinha2024q1quarkus-jvm:latest
+    hostname: api01
+    environment:
+      - QUARKUS_HTTP_LIMITS_MAX_CONNECTIONS=5000
+    ports:
+      - "8081:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: "1024MB"
+
+  api02:
+    <<: *api
+    hostname: api02
+    ports:
+      - "8082:8080"
+
+  nginx:
+    image: nginx:latest
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api01
+      - api02
+    ports:
+      - "9999:9999"
+    deploy:
+      resources:
+        limits:
+          cpus: ".14"
+          memory: "60MB"
+
+  db:
+    image: postgres:13
+    hostname: db
+    environment:
+      - POSTGRES_PASSWORD=123
+      - POSTGRES_USER=admin
+      - POSTGRES_DB=rinha
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-q", "-d", "rinha", "-U", "admin" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./script.sql:/docker-entrypoint-initdb.d/script.sql:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "190MB"
+
+networks:
+  default:
+    driver: bridge
